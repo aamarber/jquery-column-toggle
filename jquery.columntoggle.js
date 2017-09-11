@@ -16,7 +16,16 @@
             keyPrefix: 'columntoggle-',
 
             //keyname in localstorage, if empty, it will get from URL
-            key: ''
+            key: '',
+
+            // The text to show when no column is selected
+            nonSelectedText: 'Select...',
+
+            // The text to show when every column is selected
+            allSelectedText: 'Every column selected',
+
+            // The text to show when every column is shown
+            selectAllText: 'Select all columns',
 
         }, options);
 
@@ -25,21 +34,12 @@
             settings.key = window.location.href;
         }
 
-        var toggleLinkStatus = {
-            checkStatus: function(el, hidelist) {
-                $(el).next().find('a').each(function(){
-                    var columnindex = $(this).attr('data-columnindex');
-                    if ($.inArray(columnindex + '', hidelist) >= 0) {
-                        $(this).addClass('inactive');
-                    } else {
-                        $(this).removeClass('inactive');
-                    }
-                });
-            }
-        }
-
         var toggleStatusStorage = {
             save: function(el){
+              if(!toggleViewModel.isLoaded){
+                return;
+              }
+
                 var hidelist = [];
                 $(el).find('thead > tr > th').each(function(index){
                     //column index start from 1
@@ -51,8 +51,6 @@
                 });
 
                 localStorage.setItem(settings.keyPrefix + settings.key, hidelist.join(','));
-
-                toggleLinkStatus.checkStatus(el, hidelist);
             },
             load: function(el){
                 if (settings.key.length > 0) {
@@ -65,8 +63,6 @@
                             });
 
                             $('[data-select-type="columnToggler"]').multiselect('deselect', hidelist);
-
-                            toggleLinkStatus.checkStatus(el, hidelist);
                         }
 
                     }
@@ -74,7 +70,53 @@
             }
         };
 
+        var toggleViewModel = {
+          isLoaded: false,
+          initMultiselect: function(table, multiselectsSelector, selectorColumnValues){
+            var onChange = function(option, checked, select) {
+              var columnindex = $(option).attr('data-columnindex');
+              toggleViewModel.toggleColumn(table, columnindex, checked);
+              toggleStatusStorage.save(table);
+            }
 
+            var $multiSelects = $(multiselectsSelector);
+
+            $multiSelects.multiselect({
+              buttonClass: 'btn btn-default btn-sm',
+              nonSelectedText: settings.nonSelectedText,
+              allSelectedText: settings.allSelectedText,
+              includeSelectAllOption: true,
+              selectAllText: settings.selectAllText,
+              onChange: onChange,
+              onDeselectAll: function(){
+                toggleViewModel.toggleAllColumns(table, selectorColumnValues, false);
+              },
+              onSelectAll: function(){
+                toggleViewModel.toggleAllColumns(table, selectorColumnValues, true);
+              },
+            });
+            $multiSelects.multiselect('select', selectorColumnValues);
+            toggleViewModel.isLoaded = true;
+          },
+
+          toggleColumn(table, columnIndex, selected){
+            var $columns = $(table).find('td:nth-child('+columnIndex+'), th:nth-child('+columnIndex+')');
+
+            if(selected){
+              $columns.show();
+            }
+            else{
+              $columns.hide();
+            }
+          },
+
+          toggleAllColumns: function(table, columns, selected){
+            columns.forEach(function(columnValue){
+              toggleViewModel.toggleColumn(table, columnValue, selected);
+            });
+            toggleStatusStorage.save(table);
+          }
+        };
 
         return this.each( function() {
 
@@ -107,43 +149,16 @@
 
             var toggleColumnSelector = `<select id="columnToggler" data-select-type="columnToggler" multiple="multiple" class="multiselect ${settings.toggleContainerClass}">${toggleColumnOptionsSelector.join('')}</select>`;
 
-
-            //var toggleContainer = '<div class="'+settings.toggleContainerClass+'">'+settings.toggleLabel+' '+toggleColumnHtml.join(', ')+'</div>';
             var toggleContainer = `<div class="${settings.toggleContainerClass}">${settings.toggleLabel} ${toggleColumnSelector}</div>`;
 
             $(this).before(toggleContainer);
 
-            var onChange = function(option, checked, select) {
-              var columnindex = $(option).attr('data-columnindex');
-              $(table).find('td:nth-child('+columnindex+'), th:nth-child('+columnindex+')').toggle();
-
-              //store
-              toggleStatusStorage.save(table);
-            }
-
-            var $multiSelects = $('[data-select-type="columnToggler"]');
-            $multiSelects.multiselect({ buttonClass: 'btn btn-default btn-sm', nonSelectedText: 'Seleccione...', allSelectedText: 'Todo seleccionado', onChange: onChange });
-            $multiSelects.multiselect('select', selectorColumnValues);
-            /*$multiSelects.multiselect('selectAll');
-            $multiSelects.multiselect('updateButtonText');*/
-
-
-
-            $(this).next().find('a').each(function(){
-                $(this).bind('click', function(e){
-                    var columnindex = $(this).attr('data-columnindex');
-                    $(table).find('td:nth-child('+columnindex+'), th:nth-child('+columnindex+')').toggle();
-
-                    //store
-                    toggleStatusStorage.save(table);
-
-                    e.preventDefault();
-                });
-            });
+            toggleViewModel.initMultiselect(table, '[data-select-type="columnToggler"]', selectorColumnValues);
 
             //load hide status from cache
             toggleStatusStorage.load(table);
         });
+
 
     }
 }(jQuery));
