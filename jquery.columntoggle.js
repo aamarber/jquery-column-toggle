@@ -64,6 +64,8 @@
                                 $(el).find('td:nth-child('+columnindex+'), th:nth-child('+columnindex+')').hide();
                             });
 
+                            $('[data-select-type="columnToggler"]').multiselect('deselect', hidelist);
+
                             toggleLinkStatus.checkStatus(el, hidelist);
                         }
 
@@ -80,11 +82,11 @@
             if ($(this).next().hasClass(settings.toggleContainerClass)) {
                 $(this).next().remove();
             }
-            
+
             var table = $(this);
 
             //find table header to extract columns
-            var toggleColumnHtml = [];
+            var toggleColumnOptionsSelector = [], selectorColumnValues = [];
             $(this).find('thead > tr > th').each(function(index){
 
                 //column index start from 1
@@ -98,11 +100,33 @@
                     toggleName = $(this).text();
                 }
 
-                toggleColumnHtml.push('<a href="#" data-columnindex="'+columnindex+'">'+toggleName+'</a>');
+                var columnSelector = `<option value="${columnindex}" data-columnindex="${columnindex}">${toggleName}</option>`;
+                selectorColumnValues.push(columnindex);
+                toggleColumnOptionsSelector.push(columnSelector);
             });
 
-            var toggleContainer = '<div class="'+settings.toggleContainerClass+'">'+settings.toggleLabel+' '+toggleColumnHtml.join(', ')+'</div>';
-            $(this).after(toggleContainer);
+            var toggleColumnSelector = `<select id="columnToggler" data-select-type="columnToggler" multiple="multiple" class="multiselect ${settings.toggleContainerClass}">${toggleColumnOptionsSelector.join('')}</select>`;
+
+
+            //var toggleContainer = '<div class="'+settings.toggleContainerClass+'">'+settings.toggleLabel+' '+toggleColumnHtml.join(', ')+'</div>';
+            var toggleContainer = `<div class="${settings.toggleContainerClass}">${settings.toggleLabel} ${toggleColumnSelector}</div>`;
+
+            $(this).before(toggleContainer);
+
+            var onChange = function(option, checked, select) {
+              var columnindex = $(option).attr('data-columnindex');
+              $(table).find('td:nth-child('+columnindex+'), th:nth-child('+columnindex+')').toggle();
+
+              //store
+              toggleStatusStorage.save(table);
+            }
+
+            var $multiSelects = $('[data-select-type="columnToggler"]');
+            $multiSelects.multiselect({ buttonClass: 'btn btn-default btn-sm', nonSelectedText: 'Seleccione...', allSelectedText: 'Todo seleccionado', onChange: onChange });
+            $multiSelects.multiselect('select', selectorColumnValues);
+            /*$multiSelects.multiselect('selectAll');
+            $multiSelects.multiselect('updateButtonText');*/
+
 
 
             $(this).next().find('a').each(function(){
