@@ -103,10 +103,10 @@
             var $columns = $(table).find('td:nth-child('+columnIndex+'), th:nth-child('+columnIndex+')');
 
             if(selected){
-              $columns.show();
+              $columns.fadeIn();
             }
             else{
-              $columns.hide();
+              $columns.fadeOut();
             }
           },
 
